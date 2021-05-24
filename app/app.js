@@ -23,27 +23,36 @@ var template = require('./src/views/home/template.js');
 
 app.get("/data/:id", (request, response) => {
   var next = request.params.id;
-  console.log(next);
-  var sql = 'SELECT contents FROM community WHERE title = ?;';
+  // console.log(next);
+  var sql = 'SELECT contents, DATE_FORMAT(in_date,"%Y-%m-%d")AS date, count FROM community WHERE title = ?;';
+  db.query('UPDATE community set count = count+1 WHERE title = ?;',next,function(err,results,fields){
+    if(err) console.log(err);
+    })
   db.query(sql,next,function(err,results,fields){
     if(err) console.log(err);
     const data = results.map(item=>item.contents);
-    console.log(data[0])
+    const date = results.map(item=>item.date);
+    const hit = results.map(item=>item.count);
+    // console.log(hit[0]);
+    // console.log(data[0]);
+    // console.log(date[0]);
     var title = 'Smart Backpack - Data';
-    var html = template.HTML3(title, data[0], next);
+    var html = template.DATA(title, data[0],date[0], hit[0], next);
     response.send(html);
   })
 })
 
+
 app.get('/board', function(request, response){
-  var sql = 'SELECT title FROM community;';
+  var sql = 'SELECT title, DATE_FORMAT(in_date,"%Y-%m-%d")AS date, count FROM community;';
   db.query(sql, function(err, filelist, fields){  
     var title = 'Smart Backpack - Board';
     if(err) console.log(err);
     const titleArr = filelist.map(item=>item.title);
-    var list = template.list(titleArr);
-
-    var html = template.HTML1(title, list);
+    const dateArr = filelist.map(item=>item.date);
+    const hitArr = filelist.map(item=>item.count);
+    var list = template.list(titleArr,dateArr,hitArr);
+    var html = template.BOARD(title, list);
     response.send(html);
   });
 });
@@ -53,7 +62,7 @@ app.get('/write', function(request, response){
 
    var title = 'Smart Backpack - Write';
 
-    var html = template.HTML2(title);
+    var html = template.WRITE(title);
     response.send(html);
 });
 
@@ -64,21 +73,31 @@ app.use(bodyParser.urlencoded({extended: true}));
 
 app.use("/" , home); // use -> 미들 웨어를 등록 해주는 메서드.
 
-
 app.post('/create_process', (req, res) => {
     var post = req.body;
     console.log(post);
     var name = post.name;
     var message = post.message;
- 
+
     var sql = 'INSERT INTO community(title, contents) VALUES(?, ?);';
-    db.query(sql,  [name, message], function(err, fields){  
+    db.query(sql, [name, message], function(err, fields){  
       if(err) console.log(err);
       res.redirect('/board');
     });
-  
 });
 
-module.exports = app;
+//댓글
+app.post('/create_process2', (req, res) => {
+  var post = req.body;
+  console.log(post);
+  var name = post.name;
+  var message = post.message;
+  console.log(name);
+  console.log(message);
+  fs.writeFile(`data/${name}.txt`, message, 'utf8', function(err){
+    res.redirect(`/board`);
+  })
+})
 
+module.exports = app;
 
